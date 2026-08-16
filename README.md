@@ -1,3 +1,3 @@
-2-d physics rogue-lite platformer shooter
+2-d physics rogue-lite platformer shooter with rainworld-like behaviors
 
-https://landgreen.github.io/n-gon/
+based off of https://landgreen.github.io/n-gon/
