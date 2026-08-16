@@ -312,6 +312,7 @@ const canvas = document.getElementById("canvas");
 //using "const" causes problems in safari when an ID shares the same name.
 const ctx = canvas.getContext("2d");
 // const ctx = canvas.getContext('2d', { alpha: false }); //optimization, this works if you wipe with the background color of each level
+
 document.body.style.backgroundColor = "#fff";
 
 //disable pop up menu on right click
@@ -325,7 +326,6 @@ function setupCanvas() {
     canvas.width2 = canvas.width / 2; //precalculated because I use this often (in mouse look)
     canvas.height2 = canvas.height / 2;
     ctx.font = "25px Arial";
-    ctx.textAlign = "center";
     ctx.lineJoin = "round";
     ctx.lineCap = "round";
     simulation.setZoom();
@@ -369,18 +369,13 @@ const build = {
                         }
                         const damage = tech.damageAdjustments()             //update damage bar
                         if (m.lastCalculatedDamage !== damage) {
+                            document.getElementById("damage-bar").style.height = Math.floor((Math.atan(0.25 * damage - 0.25) + 0.25) * 0.53 * canvas.height) + "px";
                             m.lastCalculatedDamage = damage
                         }
                     }
                 },
             })
         }
-    },
-    showDmgNumbers() {
-        localSettings.showDmgNumbers = !localSettings.showDmgNumbers
-        if (localSettings.isAllowed) localStorage.setItem("localSettings", JSON.stringify(localSettings)); //update local storage
-        document.getElementById("show-num").checked = localSettings.showDmgNumbers
-        document.getElementById("show-num").classList.toggle("ticked")
     },
     pauseGrid() {
         build.generatePauseLeft() //makes the left side of the pause menu with the tech
@@ -392,8 +387,9 @@ const build = {
         document.getElementById("health").style.display = "none"
         document.getElementById("health-bg").style.display = "none"
         document.getElementById("defense-bar").style.display = "none"
+        document.getElementById("damage-bar").style.display = "none"
         //show in game console
-        simulation.lastLogTime = m.cycle
+        simulation.lastLogTime = m.cycle //hide in game console
     },
     generatePauseLeft() {
         //left side
@@ -427,12 +423,8 @@ const build = {
 <br>
 ${fullscreenWarning}
 <button onclick="build.shareURL(false)" class='sort-button' style="font-size:1em;float: right;">copy build URL</button>
-<input onclick="build.hideHUD()" type="checkbox" id="hide-hud" name="hide-hud" ${localSettings.isHideHUD ? "checked" : ""}>
+<input onclick="build.hideHUD('settings')" type="checkbox" id="hide-hud" name="hide-hud" ${localSettings.isHideHUD ? "checked" : ""}>
 <label for="hide-hud" title="hide: tech, damage taken, damage, in game console, final boss health bar, tech: filament, tech: pair production, duplication animation, eigen animation, lower max body caps, no stroke on blocks" style="font-size:1.15em;">performance mode</label>
-<br>
-<input onclick="build.showDmgNumbers()" type="checkbox" id="show-num" name="show-num" ${localSettings.showDmgNumbers ? "checked" : ""}>
-<label for="show-num" title="show in game combat text"  style="font-size:1.15em;">damage numbers</label>
-
 </div>
 
 <div class="pause-grid-module">
@@ -527,12 +519,11 @@ ${b.guns[b.inventory[i]].descriptionFunction()}</div> </div>`
 
 
         let text = `<div class="sort">
-        <button onclick="build.sortTech('PAUSE')" class='color-paused' style="border: 1px #333 solid;border-radius: 0.3em;font-size: 0.5em;">PAUSE</button>
     <button onclick="build.sortTech('guntech')" class='sort-button'>${powerUps.orb.gunTech()}</button>
     <button onclick="build.sortTech('fieldtech')" class='sort-button'>${powerUps.orb.fieldTech()}</button>
     <button onclick="build.sortTech('damage')" class='sort-button'><strong class='color-d'>dmg</strong></button>
-    <button onclick="build.sortTech('damage taken')" class='sort-button'><strong style="font-weight: 100;">dmg</strong></button>
-    <button onclick="build.sortTech('energy')" class='sort-button'><strong class='color-f'>nrg</strong></button>
+    <button onclick="build.sortTech('damage taken')" class='sort-button'><strong style="font-weight: 100;">dmg taken</strong></button>
+    <button onclick="build.sortTech('energy')" class='sort-button'><strong class='color-f'>energy</strong></button>
     <button onclick="build.sortTech('heal')" class='sort-button'><strong class='color-h'>heal</strong></button>
     <button onclick="build.sortTech('bot')" class='sort-button color-bot' style="border-radius: 0px;">bot</button>
     <button onclick="build.sortTech('duplic')" class='sort-button'><strong class='color-dup'>dup</strong></button>
@@ -683,7 +674,8 @@ ${b.guns[b.inventory[i]].descriptionFunction()}</div> </div>`
             tech.tech.sort(sortKeyword);
         } else if (find === 'duplic') {
             tech.tech.sort(sortKeyword);
-        } else if (find === 'PAUSE') {
+        } else if (find === 'input') {
+            find = document.getElementById("sort-input").value.toLowerCase();
             tech.tech.sort(sortKeyword);
         }
         if (isExperiment) {
@@ -718,7 +710,9 @@ ${b.guns[b.inventory[i]].descriptionFunction()}</div> </div>`
         if (!localSettings.isHideHUD) {
             document.getElementById("right-HUD").style.display = "inline"
             document.getElementById("defense-bar").style.display = "inline"
+            document.getElementById("damage-bar").style.display = "inline"
         }
+        // document.body.style.overflow = "hidden"
         document.getElementById("pause-grid-left").style.display = "none"
         document.getElementById("pause-grid-right").style.display = "none"
         document.getElementById("pause-grid-right").style.opacity = "1"
@@ -906,16 +900,14 @@ ${b.guns[b.inventory[i]].descriptionFunction()}</div> </div>`
         let text = `
 <div class="experiment-start-box">
     <div class="sort" style="border: 0px;">
-    <button onclick="build.sortTech('PAUSE', true)" class='color-paused' style="border: 1px #333 solid;border-radius: 0.3em;font-size: 0.5em;">PAUSE</button>
         <button onclick="build.sortTech('guntech', true)" class='sort-button'>${powerUps.orb.gunTech()}</button>
         <button onclick="build.sortTech('fieldtech', true)" class='sort-button'>${powerUps.orb.fieldTech()}</button>
         <button onclick="build.sortTech('damage', true)" class='sort-button'><strong class='color-d'>dmg</strong></button>
-        <button onclick="build.sortTech('damage taken', true)" class='sort-button'><strong style="font-weight: 100;">dmg</strong></button>
+        <button onclick="build.sortTech('damage taken', true)" class='sort-button'><strong style="font-weight: 100;">dmg taken</strong></button>
         <button onclick="build.sortTech('energy', true)" class='sort-button'><strong class='color-f'>energy</strong></button>
         <button onclick="build.sortTech('heal', true)" class='sort-button'><strong class='color-h'>heal</strong></button>
         <button onclick="build.sortTech('bot', true)" class='sort-button color-bot' style="border-radius: 0px;">bot</button>
         <button onclick="build.sortTech('duplic', true)" class='sort-button'><strong class='color-dup'>dup</strong></button>
-
         <input type="search" id="sort-input" style="width: 7.5em;font-size: 0.6em;color:#000;" placeholder="sort by" />
         <button onclick="build.sortTech('input', true)" class='sort-button' style="border-radius: 0em;border: 1.5px #000 solid;font-size: 0.6em;" value="damage">sort</button>
     </div>
@@ -1922,17 +1914,8 @@ function localStorageCheck() {
     }
 
 }
-// if (localStorageCheck()) {
-//     localSettings = JSON.parse(localStorage.getItem("localSettings"))
-//     if (localSettings) {
-//         console.log('localStorage is enabled')
 if (localStorageCheck()) {
-    try {
-        localSettings = JSON.parse(localStorage.getItem("localSettings"))
-    } catch (error) {
-        console.warn("Ignoring invalid localSettings data", error)
-        localSettings = null
-    }
+    localSettings = JSON.parse(localStorage.getItem("localSettings"))
     if (localSettings) {
         console.log('localStorage is enabled')
         localSettings.isAllowed = true
@@ -1990,11 +1973,8 @@ if (localSettings.isAllowed && !localSettings.isEmpty) {
         if (localSettings.isAllowed) localStorage.setItem("localSettings", JSON.stringify(localSettings)); //update local storage
     }
 
-    if (localSettings.isHideHUD === undefined) localSettings.isHideHUD = false
+    if (localSettings.isHideHUD === undefined) localSettings.isHideHUD = true
     document.getElementById("hide-hud").checked = localSettings.isHideHUD
-
-    if (localSettings.showDmgNumbers === undefined) localSettings.showDmgNumbers = true
-    document.getElementById("show-num").checked = localSettings.showDmgNumbers
 
     if (localSettings.difficultyCompleted === undefined) {
         localSettings.difficultyCompleted = [null, false, false, false, false, false, false, false] //null because there isn't a difficulty zero
@@ -2033,7 +2013,6 @@ if (localSettings.isAllowed && !localSettings.isEmpty) {
         isHuman: false,
         key: undefined,
         isHideHUD: false,
-        showDmgNumbers: false,
         pauseMenuDetailsOpen: [true, false, false, true],
         techHistory: [],
     };

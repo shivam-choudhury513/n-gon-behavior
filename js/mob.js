@@ -176,19 +176,8 @@ const mobs = {
                 effect() {
                     if ((simulation.cycle - this.startCycle) % 30 === 0) {
                         let dmg = tech.radioactiveDamage * this.dmg
-                        if (tech.isRadStackDamage) dmg *= 1 + 0.07 * who.status.length
-                        if (who.damageReduction === 0) {
-                            this.endCycle = 0 //invulnerability clears radiation
-                            simulation.drawList.push({ //add dmg to draw queue
-                                x: who.position.x + (Math.random() - 0.5) * who.radius * 0.5,
-                                y: who.position.y + (Math.random() - 0.5) * who.radius * 0.5,
-                                radius: Math.log(dmg + 1.1) * 30,
-                                color: "rgb(255, 255, 255)",
-                                time: simulation.drawTime * 3
-                            });
-                        } else {
-                            // requestAnimationFrame(() => { who.damage(dmg) });
-                            who.damage(dmg);
+                        who.damage(dmg);
+                        if (who.damageReduction) {
                             simulation.drawList.push({ //add dmg to draw queue
                                 x: who.position.x + (Math.random() - 0.5) * who.radius * 0.5,
                                 y: who.position.y + (Math.random() - 0.5) * who.radius * 0.5,
@@ -519,8 +508,8 @@ const mobs = {
                     ctx.setLineDash([125 * Math.random(), 125 * Math.random()]);
                     // ctx.lineDashOffset = 6*(simulation.cycle % 215);
                     if (this.distanceToPlayer() < this.laserRange) {
-                        if (m.immuneCycle < m.cycle && !(m.cycle % 15)) {
-                            m.takeDamage(0.0045 * this.damageScale());
+                        if (m.immuneCycle < m.cycle) {
+                            m.takeDamage(0.0003 * this.damageScale());
                             if (m.energy > 0.1) m.energy -= 0.003
                         }
                         ctx.beginPath();
@@ -558,7 +547,7 @@ const mobs = {
                 //check for wing -> player damage
                 const hitPlayer = Matter.Query.ray([player], this.position, Vector.add(this.position, Vector.mult(perp, radius * 2.05)), minorRadius)
                 if (hitPlayer.length && m.immuneCycle < m.cycle) {
-                    if (!(m.cycle % 10)) m.takeDamage(10 * dmg * this.damageScale());
+                    m.takeDamage(dmg * this.damageScale());
                     // if (m.immuneCycle < m.cycle + immuneTime) m.immuneCycle = m.cycle + immuneTime; //player is immune to damage
 
                     //push player away
@@ -978,11 +967,7 @@ const mobs = {
             },
             explode(mass = this.mass) {
                 if (m.immuneCycle < m.cycle) {
-                    requestAnimationFrame(() => {
-                        requestAnimationFrame(() => {
-                            m.takeDamage(Math.min(Math.max(0.03 * Math.sqrt(mass), 0.01), 0.4) * this.damageScale())
-                        })
-                    })
+                    m.takeDamage(Math.min(Math.max(0.03 * Math.sqrt(mass), 0.01), 0.4) * this.damageScale());
                     this.isDropPowerUp = false;
                     this.death(); //death with no power up or body
                 }
@@ -997,8 +982,7 @@ const mobs = {
             damageScale() {
                 return ((spawn.mobDmgDoneByTier[this.tier] && level.levelsCleared < 14) ? spawn.mobDmgDoneByTier[this.tier] : spawn.dmgToPlayerByLevelsCleared())
             },
-            dmgLog: 0, //used to record damage done to mob for producing damage numbers
-            damage(dmg, isBypassShield = false, where = this.position, isDmgText = false) { //damage taken by this mob 
+            damage(dmg, isBypassShield = false) { //damage taken by this mob 
                 if ((!this.isShielded || isBypassShield) && this.alive) {
                     if (dmg !== Infinity) {
                         dmg *= tech.damageAdjustments()
@@ -1114,51 +1098,6 @@ const mobs = {
                                 })
                             }
                         }
-                        if (tech.isNegAura && m.fieldMode === 3 && this.health < 0.6 && Vector.magnitude(Vector.sub(m.pos, this.position)) < (m.fieldDrawRadius + 2 * this.radius + 20)) {
-                            dmg *= 8
-                            simulation.ephemera.push({
-                                count: 3, //cycles before it self removes
-                                vertices: this.vertices,
-                                do() {
-                                    this.count--
-                                    if (this.count < 0) simulation.removeEphemera(this)
-
-                                    ctx.beginPath();
-                                    ctx.moveTo(this.vertices[0].x, this.vertices[0].y);
-                                    for (let j = 1, len = this.vertices.length; j < len; j += 1) ctx.lineTo(this.vertices[j].x, this.vertices[j].y);
-                                    ctx.lineTo(this.vertices[0].x, this.vertices[0].y);
-                                    ctx.lineWidth = 10;
-                                    ctx.strokeStyle = `#f07`;
-                                    ctx.stroke();
-                                    ctx.lineJoin = "round"
-                                    ctx.miterLimit = 5
-                                    ctx.fillStyle = "#000"
-                                    ctx.fill();
-                                },
-                            })
-                        }
-                        if (tech.isFarAwayDmg) dmg *= 1 + Math.sqrt(Math.max(500, Math.min(3000, this.distanceToPlayer())) - 500) * 0.0067 //up to 33% dmg at max range of 3000
-                        //energy and heal drain should be calculated after damage boosts and before mass reduction
-                        if (tech.energySiphon && this.isDropPowerUp && m.immuneCycle < m.cycle) {
-                            //dmg !== Infinity &&
-                            const regen = Math.min(this.health, dmg) * tech.energySiphon * level.isReducedRegen
-                            if (!isNaN(regen) && regen !== Infinity) {
-                                m.energy += regen //max regen is 0.04 with one stack of tech.energySiphon
-                                let cycles = Math.min(40, Math.floor(200 * regen))
-                                if (cycles > 0) {
-                                    for (let i = 0; i < cycles; i++) simulation.energyGenGraphic()
-                                } else if (Math.random() < 0.01) {
-                                    simulation.energyGenGraphic(3 + Math.floor(Math.random() * 10))
-                                }
-                            }
-                        }
-                        if (localSettings.showDmgNumbers && this.damageReduction > 0) {
-                            if (isDmgText) {
-                                simulation.dmgNumbers(where, Math.ceil(dmg).toFixed(0))
-                            } else {
-                                this.dmgLog += dmg
-                            }
-                        }
 
                         //mobs specific damage changes
                         if (this.tier && level.levelsCleared < 14) {
@@ -1166,9 +1105,21 @@ const mobs = {
                         } else {
                             dmg *= spawn.mobDmgTakenByLevelsCleared() //scale by level.levelsCleared if no tier
                         }
+                        dmg *= this.damageReduction //damage reduction specific to this mob (not based on tier)
+
+                        if (tech.isFarAwayDmg) dmg *= 1 + Math.sqrt(Math.max(500, Math.min(3000, this.distanceToPlayer())) - 500) * 0.0067 //up to 33% dmg at max range of 3000
+                        //energy and heal drain should be calculated after damage boosts and before mass reduction
+                        if (tech.energySiphon && this.isDropPowerUp && m.immuneCycle < m.cycle) {
+                            //dmg !== Infinity &&
+                            const regen = Math.min(this.health, dmg) * tech.energySiphon * level.isReducedRegen
+                            if (!isNaN(regen) && regen !== Infinity) {
+                                m.energy += regen //max regen is 0.04 with one stack of tech.energySiphon
+                                simulation.energyGenGraphic(3 + Math.min(20, Math.floor(400 * regen)))
+                            }
+                        }
                         dmg /= Math.sqrt(this.mass)
-                        dmg *= this.damageReduction
                     }
+
                     this.health -= dmg
                     //this.fill = this.color + this.health + ')';
                     this.onDamage(dmg); //custom damage effects
@@ -1218,35 +1169,9 @@ const mobs = {
                 this.onDeath(this); //custom death effects
                 this.removeConsBB();
                 this.alive = false; //triggers mob removal in mob[i].replace(i)
-
-                if (localSettings.showDmgNumbers && this.dmgLog) {
-                    simulation.ephemera.push({
-                        count: 0, //cycles before it self removes
-                        dmg: Math.ceil(this.dmgLog).toFixed(0),
-                        where: { x: this.position.x, y: this.position.y - this.radius * 1.4 - 13 },
-                        drift: { x: (0.6 * Math.random()) * (Math.random() < 0.5 ? -1 : 1), y: 0.7 + 0.4 * Math.random() },
-                        do() {
-                            this.count++
-                            if (this.count > 40) {
-                                simulation.removeEphemera(this)
-                            } else {
-                                ctx.font = "50px Arial"; //monospace
-                                ctx.fillStyle = `rgba(255, 0, 17,${(40 - this.count) / 20})`;
-                                // ctx.textBaseline = "middle";
-                                ctx.fillText(this.dmg, this.where.x + this.count * this.drift.x, this.where.y - 40 - this.count * this.drift.y);
-
-                            }
-                        },
-                    })
-                }
-                this.dmgLog = 0
+                // console.log(this.shieldCount)
 
                 if (this.isDropPowerUp) {
-                    if (m.alive && level.isMobDeathFreeze && !this.isFreezeAuraOnDeath) {
-                        requestAnimationFrame(() => {
-                            spawn.freezeGrenade(this.position.x, this.position.y, this.tier, 60) //freezeGrenade(x, y, tier = null, lifeSpan = 90, pulseRadius = 230 + 10 * tier, size = 3) {
-                        });
-                    }
                     if (level.isMobDeathHeal) {
                         for (let i = 0; i < mob.length; i++) {
                             if (Vector.magnitudeSquared(Vector.sub(this.position, mob[i].position)) < 500000 && mob[i].alive) { //700
@@ -1347,7 +1272,7 @@ const mobs = {
                     if (tech.isVerlet && !m.isTimeDilated) {
                         if (tech.isBarycenter) {
                             b.orbitBot(player.position, false);
-                            bullet[bullet.length - 1].endCycle = simulation.cycle + 1200
+                            bullet[bullet.length - 1].endCycle = simulation.cycle + 1080
                         }
 
                         requestAnimationFrame(() => {
@@ -1468,11 +1393,11 @@ const mobs = {
                 }
                 if (tech.isRadioactive) {
                     //look for dots and spread them
-                    let dmg = 0
+                    let dmgTotal = 0
                     for (let i = 0, len = this.status.length; i < len; i++) {
-                        if (this.status[i].type === "dot") dmg += this.status[i].dmg //* (this.status[i].endCycle - simulation.cycle)
+                        if (this.status[i].type === "dot") dmgTotal += this.status[i].dmg * (this.status[i].endCycle - simulation.cycle)
                     }
-                    if (dmg > 0) { //look for closest mob
+                    if (dmgTotal > 0) { //look for closest mob
                         let closestRadius = 500;
                         let closestIndex = null;
                         for (let i = 0, len = mob.length; i < len; ++i) {
@@ -1483,7 +1408,7 @@ const mobs = {
                             }
                         }
                         if (closestIndex) {
-                            mobs.statusDoT(mob[closestIndex], dmg, tech.isLongRadiation ? 715392000 : 180)
+                            mobs.statusDoT(mob[closestIndex], dmgTotal / 180, 180)
                             ctx.beginPath();
                             ctx.moveTo(this.position.x, this.position.y);
                             ctx.lineTo(mob[closestIndex].position.x, mob[closestIndex].position.y);
@@ -1491,6 +1416,14 @@ const mobs = {
                             ctx.strokeStyle = "rgba(0,80,80,1)";
                             ctx.stroke();
                         }
+                        //draw AOE
+                        // simulation.drawList.push({ //add dmg to draw queue
+                        //     x: this.position.x,
+                        //     y: this.position.y,
+                        //     radius: radius,
+                        //     color: "rgba(0,80,80,0.03)",
+                        //     time: 15
+                        // });
                     }
                 }
             },

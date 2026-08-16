@@ -90,23 +90,6 @@ const powerUps = {
             return `<div class="circle-grid tech tooltip" style="position:relative; top:-0.05em; left:0.55em;opacity:0.8;margin-left:-0.55em;"><span class="tooltiptext"><span class="color-f">field</span><span class="color-m">tech</span></span></div>
                     <div class="circle-grid field tooltip" style="position:relative; top:-0.05em; left:-0.55em;opacity:0.65;margin-right:-0.55em;"><span class="tooltiptext"><span class="color-f">field</span><span class="color-m">tech</span></span></div>`
         },
-        skin() {
-            return `<span style="position:relative;top:-0.16em;">
-                        <div class="circle-grid-skin" style="width: 1.15em; height: 1.15em;"></div>
-                        <div class="circle-grid-skin-eye" style="left: 0.8em;"></div>
-                    </span>`
-        },
-        skinUpgrade() {
-            return `<span style="position:relative;">
-                        <div class="circle-grid-title" style="position:absolute; top:0.08em; left:0.5em;opacity:1;">
-                            <span style="position:relative;">
-                                <div class="circle-grid-skin" style="width: 1.15em; height: 1.15em;"></div>
-                                <div class="circle-grid-skin-eye" style="left: 0.8em;"></div>
-                            </span>
-                        </div>
-                        <div class="circle-grid-title tech" style="position:absolute; top:0.08em; left:-0.05em;opacity:0.93;width: 1.32em; height: 1.32em;"></div>
-                    </span>`
-        },
         ammo(num = 1) {
             switch (num) {
                 case 1:
@@ -342,21 +325,7 @@ const powerUps = {
                 localStorage.setItem("localSettings", JSON.stringify(localSettings)); //update local storage
             }
             simulation.inGameConsole(`<div class="circle-grid tech"></div> <span class='color-var'>tech</span>.giveTech("<strong class='color-text'>${tech.tech[index].name}</strong>")`);
-            const isSkin = tech.tech[index].isSkin
             tech.giveTech(index)
-            if (tech.isExtraGunTech && isSkin) {
-                const pool = []
-                for (let j = 0, len = tech.tech.length; j < len; j++) {
-                    if (tech.tech[j].isSkinUpgrade && tech.tech[j].allowed() && tech.tech[j].count < tech.tech[j].maxCount) {
-                        pool.push(j)
-                    }
-                }
-                if (pool.length) {
-                    const index = Math.floor(Math.random() * pool.length)
-                    simulation.inGameConsole(`<span class='color-var'>tech</span>.giveTech("<strong class='color-text'>${tech.tech[pool[index]].name}</strong>")`, 360)
-                    tech.giveTech(pool[index]) // choose from the gun pool
-                }
-            }
         }
         powerUps.endDraft(type);
     },
@@ -457,10 +426,10 @@ const powerUps = {
 
         // if (document.fullscreenElement) mouseMove.isLockPointer = true//this interacts with the mousedown event listener to exit pointer lock
     },
-    animatePowerUpGrab(color, count = 25) {
+    animatePowerUpGrab(color) {
         if (!localSettings.isHideHUD) {
             simulation.ephemera.push({
-                count: count, //cycles before it self removes
+                count: 25, //cycles before it self removes
                 do() {
                     this.count -= 2
                     if (this.count < 5) simulation.removeEphemera(this)
@@ -525,9 +494,9 @@ const powerUps = {
  //this URL downloads newest version of n-gon 
  https://codeload.github.com/landgreen/n-gon/zip/refs/heads/master
 
-                         <strong>chrome</strong>                 <strong>firefox</strong>               <strong>safari</strong>
- <strong>Win/Linux/ChromeOS:</strong> Ctrl + Shift + J       Ctrl + Shift + J      Ctrl + Alt + C
-              <strong>macOS:</strong> Cmd + Option + J       Cmd + Shift + J       Option + Cmd + C </pre></div><div class="choose-grid-module" id="exit" style="text-align: center;font-size: 1.3rem;">exit</div>`
+              <strong>chrome</strong>                     <strong>firefox</strong>
+ <strong>Win/Linux:</strong> Ctrl + Shift + J        Ctrl + Shift + J
+       <strong>Mac:</strong> Cmd + Option + J        Cmd + Shift + J</pre></div><div class="choose-grid-module" id="exit" style="text-align: center;font-size: 1.3rem;">exit</div>`
             document.getElementById("choose-grid").innerHTML = text
             //show level info
             document.getElementById("choose-grid").style.opacity = "1"
@@ -780,7 +749,7 @@ const powerUps = {
             return 0.1 * tech.largerHeals * (tech.isHalfHeals ? 0.5 : 1)
         },
         descriptionFunction() {
-            return `${powerUps.orb.Casimir(1)} give <strong>${(this.amount() * 100).toFixed(0)}</strong> max <strong class='color-f'>energy</strong>${tech.isCasimirHealth ? ` and <strong class='color-h'>health</strong>` : ""}`
+            return `${powerUps.orb.Casimir(1)} give <strong>${(this.amount() * 100).toFixed(0)}</strong> maximum <strong class='color-f'>energy</strong>${tech.isCasimirHealth ? ` and <strong class='color-h'>health</strong>` : ""}`
         },
         random() {
             if (tech.isCasimirRandom) {
@@ -943,13 +912,12 @@ const powerUps = {
             for (let i = 0; i < count; i++) {
                 if (powerUps.research.count > 0) {
                     powerUps.research.changeRerolls(-1)
-                    const cap = 200 * (localSettings.isHideHUD ? 0.5 : 1)
-                    if (tech.isResearchDamage && powerUp.length < cap) {
+                    if (tech.isResearchDamage) {
                         m.damageDone *= 1.02
                         simulation.inGameConsole(`<span class='color-var'>tech</span>.<strong class='color-d'>damage</strong> *= ${1.02} //peer review`);
                         // tech.addJunkTechToPool(0.01)
                     }
-                    if (tech.isResearchHeal && powerUp.length < cap) {
+                    if (tech.isResearchHeal) {
                         powerUps.spawn(player.position.x + 150 * (Math.random() - 0.5), player.position.y + 150 * (Math.random() - 0.5), "heal", false);
                     }
                 }
@@ -1073,43 +1041,16 @@ const powerUps = {
         size() {
             return 17;
         },
-        // scarcityGraphic() {
-        //     if (tech.isScarcity && b.guns[b.activeGun].ammo === 0) {
-        //         console.log('scarcity')
-        //         // powerUps.animatePowerUpGrab('#f00')
-        //         simulation.ephemera.push({
-        //             count: 40, //cycles before it self removes
-        //             do() {
-        //                 this.count -= 2
-        //                 if (this.count < 5) simulation.removeEphemera(this)
-
-        //                 ctx.beginPath();
-        //                 ctx.arc(m.pos.x, m.pos.y, Math.max(3, this.count), 0, 2 * Math.PI);
-        //                 ctx.fillStyle = '#f00'
-        //                 ctx.fill();
-        //             },
-        //         })
-        //     }
-        // },
         effect() {
             const couplingExtraAmmo = (m.fieldMode === 10 || m.fieldMode === 0) ? 1 + 0.05 * m.coupling : 1
             if (b.inventory.length > 0) {
-                let animateGrabRadius = 0
+                powerUps.animatePowerUpGrab('rgba(68, 102, 119,0.25)')
                 if (tech.isAmmoForGun && (b.activeGun !== null && b.activeGun !== undefined)) { //give extra ammo to one gun only with tech logistics
                     const name = b.guns[b.activeGun]
                     if (name.ammo !== Infinity) {
                         if (tech.ammoCap) {
-                            animateGrabRadius = 60
-                            if (tech.isScarcity && name.ammo === 0) animateGrabRadius = 85
-                            // console.log(name.ammo, animateGrabRadius)
-                            name.ammo = Math.ceil(2 * name.ammoPack * (tech.ammoCap + ((tech.isScarcity && name.ammo === 0) ? 14 : 0)) * couplingExtraAmmo)
+                            name.ammo = Math.ceil(2 * name.ammoPack * tech.ammoCap * couplingExtraAmmo)
                         } else {
-                            if (tech.isScarcity && name.ammo === 0) {
-                                animateGrabRadius = 85
-                                for (let j = 0; j < 14; j++) name.ammo += Math.ceil((Math.random() + Math.random()) * name.ammoPack * couplingExtraAmmo)
-                            } else {
-                                animateGrabRadius = 50
-                            }
                             name.ammo += Math.ceil(2 * (Math.random() + Math.random()) * name.ammoPack * couplingExtraAmmo)
                         }
                     }
@@ -1118,26 +1059,14 @@ const powerUps = {
                         const name = b.guns[b.inventory[i]]
                         if (name.ammo !== Infinity) {
                             if (tech.ammoCap) {
-                                if (tech.isScarcity && name.ammo === 0) {
-                                    animateGrabRadius = 85
-                                } else if (animateGrabRadius < 50) {
-                                    animateGrabRadius = 50
-                                }
-                                name.ammo = Math.ceil(name.ammoPack * (tech.ammoCap + ((tech.isScarcity && name.ammo === 0) ? 14 : 0)) * couplingExtraAmmo)
-                            } else {
-                                if (tech.isScarcity && name.ammo === 0) {
-                                    animateGrabRadius = 85
-                                    for (let j = 0; j < 14; j++) name.ammo += Math.ceil((Math.random() + Math.random()) * name.ammoPack * couplingExtraAmmo)
-                                } else if (animateGrabRadius < 25) {
-                                    animateGrabRadius = 25
-                                }
-                                name.ammo += Math.ceil((Math.random() + Math.random()) * name.ammoPack * couplingExtraAmmo) //default ammo behavior
+                                name.ammo = Math.ceil(name.ammoPack * tech.ammoCap * couplingExtraAmmo)
+                            } else { //default ammo behavior
+                                name.ammo += Math.ceil((Math.random() + Math.random()) * name.ammoPack * couplingExtraAmmo)
                             }
                         }
                     }
                 }
                 simulation.updateGunHUD();
-                powerUps.animatePowerUpGrab(`rgba(68, 102, 119, ${animateGrabRadius / 100})`, animateGrabRadius)
             }
             powerUps.Casimir.random()
         }
@@ -1146,15 +1075,7 @@ const powerUps = {
         if (tech.isSuperDeterminism || type === "constraint" || type === "entanglement") {
             return `<div></div>`
         } else if (tech.isCancelTech && tech.cancelTechCount === 0) {
-            // return `<div class='cancel-card sticky' onclick='powerUps.endDraft("${type}",true)' style="width: 115px;position: relative;"> <span class="display: block;color-randomize;text-align: center;" style="position: absolute; width: 100%; text-align: center; left: 0; top: 8px;">randomize</span> <span style="position: absolute; width: 100%; text-align: center; left: 0; bottom: 8px;">cancel</span> </div>`
-            // return `<div class='cancel-card sticky' onclick='powerUps.endDraft("${type}",true)' style="width: 115px;"> <span class="display: block;color-randomize;text-align: center;">randomize</span> <span style="display: block; text-align: center;">cancel</span> </div>`
-            return `<div class='cancel-card sticky' onclick='powerUps.endDraft("${type}",true)' style="width: 115px;"> <span class="color-randomize;">randomize</span></div>`
-            // return `<div class='cancel-card sticky' onclick='powerUps.endDraft("${type}",true)' style="width: 115px;">
-            //     <span class="color-randomize" style="position: relative; display: inline-block;">
-            //         randomize
-            //         <span style="position: absolute; left: 0; top: 0;">cancel</span>
-            //     </span>
-            // </div>`
+            return `<div class='cancel-card sticky' onclick='powerUps.endDraft("${type}",true)' style="width: 115px;"><span class="color-randomize">randomize</span></div>`
         } else if (level.levelsCleared === 0 && localSettings.isTrainingNotAttempted && b.inventory.length === 0) { //don't show cancel if on initial level and haven't done tutorial
             return `<div class='cancel-card sticky'  style="visibility: hidden;"></div>`
         } else {
@@ -1209,7 +1130,6 @@ const powerUps = {
             text += `<span class='cancel-card' style="width: 95px;float: right;background-color: #aaa;color:#888;">cancel</span>`
         } else if (tech.isCancelTech && tech.cancelTechCount === 0 && type !== "entanglement") {
             text += `<span class='cancel-card' onclick='powerUps.endDraft("${type}",true)' style="width: 115px;float: right;font-size:0.9em;padding-top:5px;"><span class="color-randomize">randomize</span></span>`
-            // text += `<span class='cancel-card' onclick='powerUps.endDraft("${type}",true)' style="width: 115px;float: right;font-size:0.9em;padding-top:5px;"><span class="color-randomize" style="position: relative; display: inline-block;">randomize<span style="position: absolute; left: 0; top: 0; opacity: 0.5;font-weight:800;font-size:1.5em;font-family: Arial;">cancel</span></span></span>`
         } else if (level.levelsCleared === 0 && localSettings.isTrainingNotAttempted && b.inventory.length === 0) {
             text += `<span class='cancel-card' style="visibility: hidden;">cancel</span>` //don't show cancel if on initial level and haven't done tutorial
         } else {
@@ -1779,7 +1699,7 @@ const powerUps = {
                 }); //wrapping in animation frame prevents errors, probably
                 if (tech.isBarycenter) {
                     b.orbitBot(player.position, false);
-                    bullet[bullet.length - 1].endCycle = simulation.cycle + 1440 //extra time to wait for pair production to end
+                    bullet[bullet.length - 1].endCycle = simulation.cycle + 1320 //15 seconds
                 }
             } else {
                 m.energy += 2 * level.isReducedRegen;
@@ -1801,10 +1721,6 @@ const powerUps = {
         }
         if (tech.Casimir && Math.random() < tech.Casimir) {
             powerUps.spawn(x - 10, y + 1, "Casimir");
-        }
-        if (tech.isCrystalLattice && powerUps.boost.endCycle > simulation.cycle) {
-            const options = ["boost", "coupling", "Casimir"]
-            powerUps.spawn(x, y, options[Math.floor(Math.random() * options.length)]);
         }
         if (!tech.isEnergyHealth && (Math.random() * Math.random() - 0.3 > Math.sqrt(m.health)) || Math.random() < 0.04) { //spawn heal chance is higher at low health
             powerUps.spawn(x, y, "heal");
@@ -2005,12 +1921,10 @@ const powerUps = {
         }
 
         //count big power ups and small power ups
-
-        let options = [powerUps.healGiveMaxEnergy ? "Casimir" : "heal", "research"]
-        if (!tech.isBoostReplaceAmmo) options.push("ammo")
-        if (m.coupling || tech.isBoostReplaceAmmo) options.push("coupling")
-        if (tech.isBoostPowerUps || tech.isBoostReplaceAmmo) options.push("boost")
-        if (tech.isCasimir || tech.isBoostReplaceAmmo) options.push("Casimir")
+        let options = [powerUps.healGiveMaxEnergy ? "Casimir" : "heal", "research", tech.isBoostReplaceAmmo ? "boost" : "ammo"]
+        if (m.coupling) options.push("coupling")
+        if (tech.isBoostPowerUps) options.push("boost")
+        if (tech.isCasimir) options.push("Casimir")
 
         let bigIndexes = []
         let smallIndexes = []
@@ -2052,8 +1966,7 @@ const powerUps = {
     spawn(x, y, name, moving = true, size = powerUps[name].size()) {
         if ((!tech.isSuperDeterminism || (name !== 'research'))) {
             if (tech.isBoostReplaceAmmo && name === 'ammo') {
-                const items = ["coupling", "boost", "Casimir", "research", "heal"]
-                name = items[Math.floor(Math.random() * items.length)]
+                name = 'boost'
                 size = powerUps[name].size()
             }
             if (name === "heal" && powerUps.healGiveMaxEnergy) {
@@ -2067,10 +1980,6 @@ const powerUps = {
                     powerUps.directSpawn(x + 10, y + 10, "coupling", moving, size, true)
                     powerUps.directSpawn(x - 10, y - 10, "coupling", moving, size, true)
                     powerUps.directSpawn(x + 10, y - 10, "coupling", moving, size, true)
-                    powerUps.directSpawn(x, y, "coupling", moving, size, true)
-                    powerUps.directSpawn(x + 5, y + 20, "coupling", moving, size, true)
-                    powerUps.directSpawn(x, y - 20, "coupling", moving, size, true)
-                    powerUps.directSpawn(x - 20, y, "coupling", moving, size, true)
                     if (tech.isDupEnergy) {
                         m.energy *= 2
                         for (let i = 0; i < 3; i++)simulation.energyGenGraphic()

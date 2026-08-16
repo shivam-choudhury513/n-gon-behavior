@@ -230,37 +230,6 @@ const spawn = {
             spawn[pick](x, y);
         }
     },
-    randomMobPositions: [],
-    randomMobFromArray() {
-        seededShuffle(spawn.randomMobPositions)
-        const maxMobs = (simulation.difficultyMode === 1) ? 2 : Math.ceil(5 * Math.log(level.levelsCleared + 1))
-        const mobsInLevel = mob.filter(who => who.alive && who.isDropPowerUp && !who.isBoss && !who.shield && !who.isMobBullet && who.collisionFilter.category !== cat.mobBullet).length
-        const mobsToSpawn = Math.min(spawn.randomMobPositions.length, Math.max(0, maxMobs - mobsInLevel))
-        for (let i = 0; i < mobsToSpawn; i++) {
-            const position = spawn.randomMobPositions[i]
-            if (position.isSmall) {
-                const num = Math.max(Math.min(Math.round(Math.random() * simulation.difficulty * 0.2), 4), 0)
-                const size = 16 + Math.ceil(Math.random() * 15)
-                for (let j = 0; j < num; j++) {
-                    const pick = spawn.pickList[Math.floor(Math.random() * spawn.pickList.length)]
-                    spawn[pick](position.x + Math.round((Math.random() - 0.5) * 20) + j * size * 2.5, position.y + Math.round((Math.random() - 0.5) * 20), size)
-                }
-                if (tech.isDuplicateMobs && Math.random() < tech.duplicationChance()) {
-                    for (let j = 0; j < num; j++) {
-                        const pick = spawn.pickList[Math.floor(Math.random() * spawn.pickList.length)]
-                        spawn[pick](position.x + Math.round((Math.random() - 0.5) * 20) + j * size * 2.5, position.y + Math.round((Math.random() - 0.5) * 20), size)
-                    }
-                }
-            } else {
-                const pick = spawn.pickList[Math.floor(Math.random() * spawn.pickList.length)]
-                spawn[pick](position.x, position.y)
-                if (tech.isDuplicateMobs && Math.random() < tech.duplicationChance()) {
-                    const pick = spawn.pickList[Math.floor(Math.random() * spawn.pickList.length)]
-                    spawn[pick](position.x, position.y)
-                }
-            }
-        }
-    },
     randomSmallMob(x, y,
         num = Math.max(Math.min(Math.round(Math.random() * simulation.difficulty * 0.2), 4), 0),
         size = 16 + Math.ceil(Math.random() * 15),
@@ -581,6 +550,7 @@ const spawn = {
                     for (let i = 0; i < mob.length; i++) {
                         if (mob[i].isFinalBossMob) {
                             foundMobs = true
+                            // mob[i].damage(0.01);
                             break
                         }
                     }
@@ -1380,6 +1350,7 @@ const spawn = {
                                 document.getElementById("health").style.display = "none"
                                 document.getElementById("health-bg").style.display = "none"
                                 document.getElementById("defense-bar").style.display = "none"
+                                document.getElementById("damage-bar").style.display = "none"
                                 document.getElementById("text-log").style.display = "none"
                                 document.getElementById("fade-out").style.opacity = 1; //slowly fades out
                                 // build.shareURL(false)
@@ -4985,7 +4956,7 @@ const spawn = {
             if (Vector.magnitude(Vector.sub(this.position, player.position)) < eventHorizon) {
                 if (m.immuneCycle < m.cycle) {
                     if (m.energy > 0) m.energy -= 0.005
-                    if (m.energy < 0.1 && !(m.cycle % 5)) m.takeDamage(0.0005 * this.damageScale());
+                    if (m.energy < 0.1) m.takeDamage(0.0001 * this.damageScale());
                 }
                 const angle = Math.atan2(player.position.y - this.position.y, player.position.x - this.position.x);
                 player.force.x -= 0.00125 * player.mass * Math.cos(angle) * (m.onGround ? 1.8 : 1);
@@ -5055,7 +5026,7 @@ const spawn = {
             if (Vector.magnitude(Vector.sub(this.position, player.position)) < eventHorizon) {
                 if (m.immuneCycle < m.cycle) {
                     if (m.energy > 0) m.energy -= 0.005
-                    if (m.energy < 0.1 && !(m.cycle % 5)) m.takeDamage(0.0005 * this.damageScale());
+                    if (m.energy < 0.1) m.takeDamage(0.0001 * this.damageScale());
                 }
                 const angle = Math.atan2(player.position.y - this.position.y, player.position.x - this.position.x);
                 player.force.x -= 0.00125 * player.mass * Math.cos(angle) * (m.onGround ? 1.8 : 1);
@@ -5087,7 +5058,7 @@ const spawn = {
         me.collisionFilter.mask = cat.player | cat.bullet //| cat.body
         // me.frictionAir = 0.005;
         me.memory = 1600;
-        Matter.Body.setDensity(me, 0.055); //extra dense //normal is 0.001 //makes effective life much larger
+        Matter.Body.setDensity(me, 0.06); //extra dense //normal is 0.001 //makes effective life much larger
         me.onDeath = function () {
             //applying forces to player doesn't seem to work inside this method, not sure why
             powerUps.spawnBossPowerUp(this.position.x, this.position.y)
@@ -5177,7 +5148,7 @@ const spawn = {
                 if (Vector.magnitude(Vector.sub(this.position, player.position)) < eventHorizon) {
                     if (m.immuneCycle < m.cycle) {
                         if (m.energy > 0) m.energy -= 0.008
-                        if (m.energy < 0.1 && !(m.cycle % 5)) m.takeDamage(0.0008 * this.damageScale());
+                        if (m.energy < 0.1) m.takeDamage(0.00015 * this.damageScale());
                     }
                     const angle = Math.atan2(player.position.y - this.position.y, player.position.x - this.position.x);
                     player.force.x -= 0.0013 * Math.cos(angle) * player.mass * (m.onGround ? 1.7 : 1);
@@ -7015,9 +6986,9 @@ const spawn = {
                 ctx.moveTo(this.position.x, this.position.y);
                 if (targetDist < r + 16) {
                     targetDist = r + 10;
-                    if (!(m.cycle % 20) && m.immuneCycle < m.cycle) {
-                        m.takeDamage(0.006 * this.damageScale());
-                        if (m.energy > 0.1) m.energy -= 0.06
+                    if (m.immuneCycle < m.cycle) {
+                        m.takeDamage(0.0003 * this.damageScale());
+                        if (m.energy > 0.1) m.energy -= 0.003
                     }
                     ctx.beginPath();
                     ctx.moveTo(this.position.x, this.position.y);
@@ -9348,8 +9319,8 @@ const spawn = {
                     best = vertexCollision(this.position, look, m.isCloak ? [map, body] : [map, body, [playerBody, playerHead]]);
 
                     // hitting player
-                    if (!(m.cycle % 2) && (best.who === playerBody || best.who === playerHead) && m.immuneCycle < m.cycle) {
-                        const dmg = 0.006 * this.damageScale();
+                    if ((best.who === playerBody || best.who === playerHead) && m.immuneCycle < m.cycle) {
+                        const dmg = 0.003 * this.damageScale();
                         m.takeDamage(dmg);
                         //draw damage
                         ctx.fillStyle = color;
@@ -13294,7 +13265,6 @@ const spawn = {
         me.frictionAir = 0.05;
         me.torque = 0.0001 * me.inertia * (Math.random() > 0.5 ? -1 : 1)
         me.fireDir = { x: 0, y: 0 };
-        me.isFreezeAuraOnDeath = true
         me.onDeath = function () { //helps collisions functions work better after vertex have been changed
             setTimeout(() => { //fix mob in place, but allow rotation
                 spawn.freezeGrenade(this.position.x, this.position.y, this.tier);
@@ -14679,14 +14649,6 @@ const spawn = {
         };
         me.do = function () {
             this.gravity();
-            //draw
-            ctx.beginPath();
-            ctx.moveTo(constraint1.pointA.x, constraint1.pointA.y);
-            ctx.lineTo(constraint1.bodyB.position.x + constraint1.pointB.x, constraint1.bodyB.position.y + constraint1.pointB.y);
-            ctx.lineWidth = 1
-            ctx.strokeStyle = "rgba(0,0,0,0.2)";
-            ctx.stroke();
-
             if (this.isInvulnerable) {
                 this.repulsion();
                 this.invulnerableCount--
@@ -14712,9 +14674,16 @@ const spawn = {
                 ctx.stroke();
             } else {
                 this.seePlayerCheck();
-                this.attraction();
                 this.checkStatus();
+                this.attraction();
             }
+            //draw
+            ctx.beginPath();
+            ctx.moveTo(constraint1.pointA.x, constraint1.pointA.y);
+            ctx.lineTo(constraint1.bodyB.position.x + constraint1.pointB.x, constraint1.bodyB.position.y + constraint1.pointB.y);
+            ctx.lineWidth = 1
+            ctx.strokeStyle = "rgba(0,0,0,0.2)";
+            ctx.stroke();
         };
     },
     tetherBoss4(x, y, constraint, radius = 90) {
@@ -15494,58 +15463,10 @@ const spawn = {
     mapVertex(x, y, vector, properties) { //adds shape to map array
         map[map.length] = Matter.Bodies.fromVertices(x, y, Vertices.fromPath(vector), properties);
     },
-    // bodyRectCorner(x, y, w = 800, h = 400, c = 25, properties) {
-    //     w *= 0.5
-    //     h *= 0.5
-    //     const vector = `${w} -${h - c}  ${w} ${h - c}  ${w - c} ${h}  -${w - c} ${h}  -${w} ${h - c}  -${w} -${h - c}  -${w - c} -${h}  ${w - c} -${h}`
-    //     map[map.length] = Matter.Bodies.fromVertices(x, y, Vertices.fromPath(vector), properties);
-    // },
-    bodyRectCornerVector(w = 800, h = 400, c = 25, round = [true, true, true, true]) {
+    bodyRectCorner(x, y, w = 800, h = 400, c = 25, properties) {
         w *= 0.5
         h *= 0.5
-        c = Math.max(0, Math.min(c, w, h))
-        let isRounded
-        if (typeof round === "boolean") {
-            isRounded = [round, round, round, round]
-        } else if (Array.isArray(round)) {
-            isRounded = round
-        } else if (round) {
-            isRounded = [round.topRight, round.bottomRight, round.bottomLeft, round.topLeft]
-        } else {
-            isRounded = [true, true, true, true]
-        }
-        const [topRight, bottomRight, bottomLeft, topLeft] = isRounded.map(corner => corner !== false)
-        const points = []
-        if (topRight) {
-            points.push(`${w} -${h - c}`)
-        } else {
-            points.push(`${w} -${h}`)
-        }
-        if (bottomRight) {
-            points.push(`${w} ${h - c}`, `${w - c} ${h}`)
-        } else {
-            points.push(`${w} ${h}`)
-        }
-        if (bottomLeft) {
-            points.push(`-${w - c} ${h}`, `-${w} ${h - c}`)
-        } else {
-            points.push(`-${w} ${h}`)
-        }
-        if (topLeft) {
-            points.push(`-${w} -${h - c}`, `-${w - c} -${h}`)
-        } else {
-            points.push(`-${w} -${h}`)
-        }
-        if (topRight) points.push(`${w - c} -${h}`)
-        return points.join("  ")
-    },
-    bodyRectCorner(x, y, w = 800, h = 400, c = 25, round = [true, true, true, true], properties) {
-        if (round && !Array.isArray(round) && typeof round !== "boolean" && round.topRight === undefined && round.bottomRight === undefined && round.bottomLeft === undefined && round.topLeft === undefined) {
-            properties = round
-            round = [true, true, true, true]
-        }
-        const vector = this.bodyRectCornerVector(w, h, c, round)
-        // console.log(vector)
+        const vector = `${w} -${h - c}  ${w} ${h - c}  ${w - c} ${h}  -${w - c} ${h}  -${w} ${h - c}  -${w} -${h - c}  -${w - c} -${h}  ${w - c} -${h}`
         map[map.length] = Matter.Bodies.fromVertices(x, y, Vertices.fromPath(vector), properties);
     },
     mapRectNow(x, y, width, height, properties, isRedrawMap = true) { //adds rectangle to map array in the middle of a level
